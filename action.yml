@@ -29,9 +29,9 @@ runs:
     - name: Connect to server
       uses: picodebr/ssh-action@v1
       with:
-        host: ${{ inputs.ssh_host }}
-        user: ${{ inputs.ssh_user }}
-        key: ${{ inputs.ssh_key }}
+        ssh_host: ${{ inputs.ssh_host }}
+        ssh_user: ${{ inputs.ssh_user }}
+        ssh_key: ${{ inputs.ssh_key }}
         command: |
           if [ ! -f nginx/conf.d/https.conf ]; then
             echo "Installing SSL certificate."
@@ -46,10 +46,8 @@ runs:
 
 
             # renew certificate every month
-            crontab -l >> cronlist
-
-            CRONJOBS_COUNT=`grep -ci "" cronlist`
-            MATCHED_COUNT=`grep -ci "certbot/certificate" cronlist`
+            CRONJOBS_COUNT=`crontab -l | grep -ci ""`
+            MATCHED_COUNT=`crontab -l | -ci "certbot/certificate"`
 
             if [ $MATCHED_COUNT == 0 ]; then
               if [ $CRONJOBS_COUNT == 0 ]; then
@@ -60,8 +58,6 @@ runs:
             else
               echo "cronjob to renew certificate already exists"
             fi
-
-            rm cronlist            
 
             echo "SSL certificate installed."
           else
