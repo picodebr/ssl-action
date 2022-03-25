@@ -27,7 +27,7 @@ runs:
   using: composite
   steps:
     - name: Connect to server
-      uses: picodebr/ssh-action@v1
+      uses: picodebr/ssh-action@v1.2
       with:
         ssh_host: ${{ inputs.ssh_host }}
         ssh_user: ${{ inputs.ssh_user }}
