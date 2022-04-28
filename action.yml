@@ -1,6 +1,6 @@
-name: SSL generator
+name: ssl action
 
-description: Installation and renew of the SSL certificate with certbot
+description: Installation and renew of the SSL certificates with certbot
 
 inputs:
   ssh_key:
@@ -23,6 +23,11 @@ inputs:
     description: email from address owner
     required: true
 
+  certbot_folder:
+    description: path where the certbot folder resides
+    required: false
+    default: ~/app/production/certbot
+
 runs:
   using: composite
   steps:
@@ -36,11 +41,11 @@ runs:
           if [ ! -f nginx/conf.d/https.conf ]; then
             echo "Installing SSL certificate."
 
-            cd ~/app/production
+            cd ${{ inputs.certbot_folder }}
 
             docker run --rm \
-              --volume "$(pwd)/certbot/www:/var/www/html:rw" \
-              --volume "$(pwd)/certbot/certificate:/etc/letsencrypt:rw" \
+              --volume "$(pwd)/www:/var/www/html:rw" \
+              --volume "$(pwd)/certificate:/etc/letsencrypt:rw" \
               certbot/certbot:latest certonly --webroot -w /var/www/html \
               -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n
 
@@ -51,9 +56,9 @@ runs:
 
             if [ $MATCHED_COUNT == 0 ]; then
               if [ $CRONJOBS_COUNT == 0 ]; then
-                echo "0 0 1 * * docker run --rm --volume \"$(pwd)/certbot/www:/var/www/html:rw\" --volume \"$(pwd)/certbot/certificate:/etc/letsencrypt:rw\" certbot/certbot:latest certonly --webroot -w /var/www/html -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n" | crontab -
+                echo "0 0 1 * * docker run --rm --volume \"$(pwd)/www:/var/www/html:rw\" --volume \"$(pwd)/certificate:/etc/letsencrypt:rw\" certbot/certbot:latest certonly --webroot -w /var/www/html -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n" | crontab -
               else
-                (crontab -l && echo "0 0 1 * * docker run --rm --volume \"$(pwd)/certbot/www:/var/www/html:rw\" --volume \"$(pwd)/certbot/certificate:/etc/letsencrypt:rw\" certbot/certbot:latest certonly --webroot -w /var/www/html -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n") | crontab -
+                (crontab -l && echo "0 0 1 * * docker run --rm --volume \"$(pwd)/www:/var/www/html:rw\" --volume \"$(pwd)/certificate:/etc/letsencrypt:rw\" certbot/certbot:latest certonly --webroot -w /var/www/html -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n") | crontab -
               fi
             else
               echo "cronjob to renew certificate already exists"
