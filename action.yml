@@ -28,6 +28,11 @@ inputs:
     required: false
     default: ~/app/production/certbot
 
+  install_condition:
+    description: bash condition for the ssl certificate be installed
+    required: false
+    default: $(which docker)
+
   run_on_success:
     descripton: bash command to run after installing the certificate
     required: false
@@ -43,29 +48,33 @@ runs:
         ssh_user: ${{ inputs.ssh_user }}
         ssh_key: ${{ inputs.ssh_key }}
         command: |
-          echo "Installing SSL certificate."
+          if [ ${{ inputs.install_condition }} ]; then
+            echo "Installing SSL certificate."
 
-          cd ${{ inputs.certbot_folder }}
+            cd ${{ inputs.certbot_folder }}
 
-          (docker run --rm \
-            --volume "$(pwd)/www:/var/www/html:rw" \
-            --volume "$(pwd)/certificate:/etc/letsencrypt:rw" \
-            certbot/certbot:latest certonly --webroot -w /var/www/html \
-            -d ${{ inputs.certificate_address }} --agree-tos \
-            --email ${{ inputs.email }} -n) && (${{ inputs.run_on_success }})
+            (docker run --rm \
+              --volume "$(pwd)/www:/var/www/html:rw" \
+              --volume "$(pwd)/certificate:/etc/letsencrypt:rw" \
+              certbot/certbot:latest certonly --webroot -w /var/www/html \
+              -d ${{ inputs.certificate_address }} --agree-tos \
+              --email ${{ inputs.email }} -n) && (${{ inputs.run_on_success }})
 
-          # renew certificate every month
-          CRONJOBS_COUNT=`crontab -l | grep -ci ""`
-          MATCHED_COUNT=`crontab -l | -ci "certbot/certificate"`
+            # renew certificate every month
+            CRONJOBS_COUNT=`crontab -l | grep -ci ""`
+            MATCHED_COUNT=`crontab -l | -ci "certbot/certificate"`
 
-          if [ $MATCHED_COUNT == 0 ]; then
-            if [ $CRONJOBS_COUNT == 0 ]; then
-              echo "0 0 1 * * docker run --rm --volume \"$(pwd)/www:/var/www/html:rw\" --volume \"$(pwd)/certificate:/etc/letsencrypt:rw\" certbot/certbot:latest certonly --webroot -w /var/www/html -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n" | crontab -
+            if [ $MATCHED_COUNT == 0 ]; then
+              if [ $CRONJOBS_COUNT == 0 ]; then
+                echo "0 0 1 * * docker run --rm --volume \"$(pwd)/www:/var/www/html:rw\" --volume \"$(pwd)/certificate:/etc/letsencrypt:rw\" certbot/certbot:latest certonly --webroot -w /var/www/html -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n" | crontab -
+              else
+                (crontab -l && echo "0 0 1 * * docker run --rm --volume \"$(pwd)/www:/var/www/html:rw\" --volume \"$(pwd)/certificate:/etc/letsencrypt:rw\" certbot/certbot:latest certonly --webroot -w /var/www/html -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n") | crontab -
+              fi
             else
-              (crontab -l && echo "0 0 1 * * docker run --rm --volume \"$(pwd)/www:/var/www/html:rw\" --volume \"$(pwd)/certificate:/etc/letsencrypt:rw\" certbot/certbot:latest certonly --webroot -w /var/www/html -d ${{ inputs.certificate_address }} --agree-tos --email ${{ inputs.email }} -n") | crontab -
+              echo "cronjob to renew certificate already exists"
             fi
-          else
-            echo "cronjob to renew certificate already exists"
-          fi
 
-          echo "SSL certificate installed."
+            echo "SSL certificate installed."
+          else
+            echo "SSL certificate installation skipped."
+          fi
