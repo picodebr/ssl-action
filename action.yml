@@ -37,7 +37,6 @@ runs:
   using: composite
   steps:
     - name: Connect to server
-      shell: bash
       uses: picodebr/ssh-action@v1.2
       with:
         ssh_host: ${{ inputs.ssh_host }}
